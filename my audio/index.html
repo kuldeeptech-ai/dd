@@ -1,32 +1,69 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Text to Audio</title>
+  <title>Real Text to Audio</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="app">
+<div class="box">
   <h1>Text to Audio</h1>
-  <p class="sub">Likhiye aur awaaz me suniye</p>
+  <p class="sub">Real human-like voice</p>
 
-  <textarea id="text" placeholder="Yahan Hindi ya English text likhiye..."></textarea>
+  <textarea id="text" placeholder="Hindi ya English text likhiye..."></textarea>
 
-  <select id="voiceSelect"></select>
+  <select id="language">
+    <option value="hi-IN">Hindi</option>
+    <option value="en-US">English</option>
+  </select>
 
-  <div class="controls">
-    <button onclick="speakText()">Play</button>
-    <button class="stop" onclick="stopSpeech()">Stop</button>
-  </div>
+  <select id="gender">
+    <option value="FEMALE">Female Voice</option>
+    <option value="MALE">Male Voice</option>
+  </select>
 
-  <p class="info">
+  <label>Speed</label>
+  <input type="range" id="speed" min="0.7" max="1.3" step="0.1" value="1">
+
+  <label>Emotion (Pitch)</label>
+  <input type="range" id="pitch" min="-4" max="6" step="1" value="0">
+
+  <button onclick="generate()">Generate Audio</button>
+
+  <audio id="player" controls></audio>
+
+  <p class="note">
     Website abhi development phase me hai<br>
     Jald hi launch hone wali hai
   </p>
 </div>
 
-<script src="script.js"></script>
+<script>
+async function generate() {
+  const body = {
+    text: document.getElementById("text").value,
+    language: document.getElementById("language").value,
+    gender: document.getElementById("gender").value,
+    speed: document.getElementById("speed").value,
+    pitch: document.getElementById("pitch").value
+  };
+
+  if (!body.text) return alert("Text likhiye");
+
+  const res = await fetch("/api/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+
+  const data = await res.json();
+  const audio = document.getElementById("player");
+  audio.src = data.audio;
+  audio.play();
+}
+</script>
+
 </body>
 </html>
