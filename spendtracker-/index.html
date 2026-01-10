@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spending Tracker</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#4f46e5">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Permission Screen -->
+  <div id="permissionBox" class="permission">
+    <h2>Allow Local Storage</h2>
+    <p>This app stores expenses on your device.</p>
+    <button onclick="grantPermission()">Allow</button>
+  </div>
+
+  <!-- App -->
+  <div id="app" class="app hidden">
+
+    <header class="header">
+      <h1>Spending Tracker</h1>
+      <button id="installBtn" class="install-btn hidden">⬇ Install</button>
+    </header>
+
+    <!-- Monthly Total Bar -->
+    <div class="monthly-bar">
+      <span>This Month</span>
+      <strong id="monthlyTotal">₹0</strong>
+    </div>
+
+    <form id="expenseForm">
+      <input type="number" id="amount" placeholder="Amount ₹" required />
+      <select id="category">
+        <option>Food</option>
+        <option>Travel</option>
+        <option>Study</option>
+        <option>Entertainment</option>
+        <option>Other</option>
+      </select>
+      <input type="text" id="note" placeholder="Note (optional)" />
+      <button type="submit">Add Expense</button>
+    </form>
+
+    <ul id="expenseList"></ul>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
