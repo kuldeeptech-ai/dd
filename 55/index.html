@@ -3,60 +3,70 @@
 <head>
 <meta charset="UTF-8">
 <title>Indian Movies</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-body{
- margin:0;
- background:#050505;
- color:#fff;
- font-family:Arial;
-}
-.wrap{
- max-width:1100px;
- margin:auto;
- padding:15px;
-}
+body{margin:0;background:#050505;color:#fff;font-family:Arial}
+.wrap{max-width:1100px;margin:auto;padding:15px}
 .grid{
  display:grid;
- grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
- gap:12px;
+ grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
+ gap:14px;
 }
-.grid img{
- width:100%;
- border-radius:12px;
- cursor:pointer;
-}
+.card{cursor:pointer}
+.card img{width:100%;border-radius:12px}
+.name{font-size:13px;margin-top:6px}
+.year{font-size:12px;color:#aaa}
 </style>
 </head>
 
 <body>
 
 <div class="wrap">
-<h2>Bharatiya Filmein</h2>
-<div class="grid" id="movies"></div>
+<h2>Indian Movies</h2>
+<div class="grid" id="grid"></div>
 </div>
 
 <script>
-const API = "7bffed716d50c95ed1c4790cfab4866a";
+const API="7bffed716d50c95ed1c4790cfab4866a";
+let page=1;
+let loading=false;
 
-// sirf India ki filmein
-fetch(
- "https://api.themoviedb.org/3/discover/movie?api_key="+API+
- "&with_original_language=hi&region=IN&sort_by=popularity.desc"
-)
-.then(r=>r.json())
-.then(d=>{
- d.results.forEach(m=>{
-  if(!m.poster_path) return;
-  movies.innerHTML += `
-   <img src="https://image.tmdb.org/t/p/w300${m.poster_path}"
-   onclick="openMovie(${m.id})">`;
+function loadMovies(){
+ if(loading) return;
+ loading=true;
+
+ fetch(
+ `https://api.themoviedb.org/3/discover/movie?api_key=${API}`+
+ `&with_original_language=hi&region=IN&sort_by=popularity.desc&page=${page}`
+ )
+ .then(r=>r.json())
+ .then(d=>{
+  d.results.forEach(m=>{
+   if(!m.poster_path) return;
+   grid.innerHTML+=`
+   <div class="card" onclick="openMovie(${m.id})">
+    <img src="https://image.tmdb.org/t/p/w300${m.poster_path}">
+    <div class="name">${m.title}</div>
+    <div class="year">${m.release_date?.slice(0,4) || ""}</div>
+   </div>`;
+  });
+  page++;
+  loading=false;
  });
-});
+}
 
 function openMovie(id){
- location.href = "movie.html?id="+id;
+ location.href="movie.html?id="+id;
 }
+
+loadMovies();
+
+window.addEventListener("scroll",()=>{
+ if(window.innerHeight + window.scrollY >= document.body.offsetHeight-400){
+  loadMovies();
+ }
+});
 </script>
 
 </body>
