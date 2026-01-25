@@ -13,10 +13,10 @@ body{margin:0;background:#050505;color:#fff;font-family:Arial}
 /* BANNER */
 .banner{
  position:relative;
- height:60vh;
+ height:clamp(280px,55vw,420px);
  background-size:cover;
  background-position:center;
- border-radius:16px;
+ border-radius:18px;
  overflow:hidden;
 }
 .banner::before{
@@ -25,34 +25,42 @@ body{margin:0;background:#050505;color:#fff;font-family:Arial}
  inset:0;
  background:linear-gradient(
   to right,
-  rgba(0,0,0,.85),
-  rgba(0,0,0,.3)
+  rgba(0,0,0,.88),
+  rgba(0,0,0,.35)
  );
 }
 .banner-content{
  position:relative;
  display:flex;
+ gap:20px;
  align-items:flex-end;
- gap:18px;
  padding:20px;
  height:100%;
 }
 .poster img{
- width:160px;
- border-radius:12px;
+ width:clamp(120px,25vw,180px);
+ border-radius:14px;
  border:3px solid #fff;
 }
+.info{
+ padding-bottom:6px;
+}
 .title{
- font-size:26px;
+ font-size:clamp(18px,4vw,28px);
  font-weight:bold;
+}
+.meta{
+ font-size:14px;
+ opacity:.85;
+ margin-top:6px;
 }
 
 /* PLAYER */
 .player{
  position:relative;
- margin-top:20px;
- padding-top:56.25%; /* 16:9 */
- border-radius:16px;
+ margin-top:22px;
+ padding-top:56.25%;
+ border-radius:18px;
  overflow:hidden;
  background:#000;
 }
@@ -64,11 +72,6 @@ body{margin:0;background:#050505;color:#fff;font-family:Arial}
  border:none;
 }
 
-@media(max-width:600px){
- .banner{height:50vh}
- .poster img{width:120px}
- .title{font-size:20px}
-}
 </style>
 </head>
 
@@ -81,7 +84,10 @@ body{margin:0;background:#050505;color:#fff;font-family:Arial}
   <div class="poster">
    <img id="poster">
   </div>
-  <div class="title" id="title"></div>
+  <div class="info">
+   <div class="title" id="title"></div>
+   <div class="meta" id="meta"></div>
+  </div>
  </div>
 </div>
 
@@ -104,6 +110,8 @@ fetch(`https://api.themoviedb.org/3/movie/${id}?api_key=${API}`)
  `https://image.tmdb.org/t/p/w500${m.poster_path}`;
  title.innerText=
  m.title+" ("+m.release_date.slice(0,4)+")";
+ meta.innerText=
+ "⭐ "+m.vote_average+" • "+m.runtime+"m";
  player.src=
  `https://vidsrc.vip/embed/movie/${id}`;
 });
