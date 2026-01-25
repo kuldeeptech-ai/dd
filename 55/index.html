@@ -2,32 +2,62 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Movie Home</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+<title>Indian Movies</title>
+
 <style>
-body{margin:0;background:#050505;color:#fff;font-family:Poppins,Arial;padding-bottom:70px}
-.wrap{max-width:1000px;margin:auto;padding:20px}
-input{width:100%;padding:14px;border:none;border-radius:30px;font-size:16px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-top:10px}
-.grid img{width:100%;border-radius:14px;box-shadow:0 6px 20px rgba(0,0,0,.6)}
-.bottom-bar{position:fixed;bottom:0;left:0;right:0;background:#0f0f0f;display:flex;justify-content:space-around;padding:12px 0;border-top:1px solid #222}
+body{
+ margin:0;
+ background:#050505;
+ color:#fff;
+ font-family:Arial;
+}
+.wrap{
+ max-width:1100px;
+ margin:auto;
+ padding:15px;
+}
+.grid{
+ display:grid;
+ grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
+ gap:12px;
+}
+.grid img{
+ width:100%;
+ border-radius:12px;
+ cursor:pointer;
+}
 </style>
 </head>
+
 <body>
+
 <div class="wrap">
-<h2>Movie Khojo</h2>
-<input placeholder="Movie ka naam likho" oninput="searchMovie(this.value)">
-<h3>Trending</h3>
-<div class="grid" id="trending"></div>
-<h3>Latest</h3>
-<div class="grid" id="latest"></div>
+<h2>Bharatiya Filmein</h2>
+<div class="grid" id="movies"></div>
 </div>
-<div class="bottom-bar">
-<div onclick="goHome()">Home</div>
-<div onclick="goSearch()">Search</div>
-<div onclick="goTrending()">Trending</div>
-</div>
-<script src="app.js"></script>
+
+<script>
+const API = "7bffed716d50c95ed1c4790cfab4866a";
+
+// sirf India ki filmein
+fetch(
+ "https://api.themoviedb.org/3/discover/movie?api_key="+API+
+ "&with_original_language=hi&region=IN&sort_by=popularity.desc"
+)
+.then(r=>r.json())
+.then(d=>{
+ d.results.forEach(m=>{
+  if(!m.poster_path) return;
+  movies.innerHTML += `
+   <img src="https://image.tmdb.org/t/p/w300${m.poster_path}"
+   onclick="openMovie(${m.id})">`;
+ });
+});
+
+function openMovie(id){
+ location.href = "movie.html?id="+id;
+}
+</script>
+
 </body>
 </html>
