@@ -8,13 +8,51 @@
 <style>
 body{margin:0;background:#050505;color:#fff;font-family:Arial}
 .wrap{max-width:1100px;margin:auto;padding:15px}
+h2{margin-bottom:10px}
+
+/* SEARCH */
+.search-box{position:relative;margin-bottom:15px}
+.search-box input{
+ width:100%;
+ padding:14px 18px;
+ border:none;
+ border-radius:30px;
+ font-size:15px;
+}
+.suggest{
+ position:absolute;
+ top:52px;
+ width:100%;
+ background:#111;
+ border-radius:12px;
+ overflow:hidden;
+ z-index:10;
+}
+.s-item{
+ display:flex;
+ gap:10px;
+ padding:10px;
+ cursor:pointer;
+}
+.s-item:hover{background:#1c1c1c}
+.s-item img{
+ width:45px;
+ border-radius:6px;
+}
+.s-title{font-size:14px}
+.s-year{font-size:12px;color:#aaa}
+
+/* GRID */
 .grid{
  display:grid;
  grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
  gap:14px;
 }
 .card{cursor:pointer}
-.card img{width:100%;border-radius:12px}
+.card img{
+ width:100%;
+ border-radius:12px;
+}
 .name{font-size:13px;margin-top:6px}
 .year{font-size:12px;color:#aaa}
 </style>
@@ -24,14 +62,20 @@ body{margin:0;background:#050505;color:#fff;font-family:Arial}
 
 <div class="wrap">
 <h2>Indian Movies</h2>
+
+<div class="search-box">
+<input placeholder="Movie search karo" oninput="searchMovie(this.value)">
+<div class="suggest" id="suggest"></div>
+</div>
+
 <div class="grid" id="grid"></div>
 </div>
 
 <script>
 const API="7bffed716d50c95ed1c4790cfab4866a";
-let page=1;
-let loading=false;
+let page=1, loading=false;
 
+// LOAD MOVIES
 function loadMovies(){
  if(loading) return;
  loading=true;
@@ -45,15 +89,42 @@ function loadMovies(){
   d.results.forEach(m=>{
    if(!m.poster_path) return;
    grid.innerHTML+=`
-   <div class="card" onclick="openMovie(${m.id})">
-    <img src="https://image.tmdb.org/t/p/w300${m.poster_path}">
-    <div class="name">${m.title}</div>
-    <div class="year">${m.release_date?.slice(0,4) || ""}</div>
-   </div>`;
+    <div class="card" onclick="openMovie(${m.id})">
+     <img loading="lazy"
+      src="https://image.tmdb.org/t/p/w300${m.poster_path}">
+     <div class="name">${m.title}</div>
+     <div class="year">${m.release_date?.slice(0,4)||""}</div>
+    </div>`;
   });
   page++;
   loading=false;
  });
+}
+
+// SEARCH
+let timer;
+function searchMovie(q){
+ clearTimeout(timer);
+ if(q.length<2){suggest.innerHTML="";return;}
+
+ timer=setTimeout(()=>{
+  fetch(`https://api.themoviedb.org/3/search/movie?api_key=${API}&query=${q}`)
+  .then(r=>r.json())
+  .then(d=>{
+   suggest.innerHTML="";
+   d.results.slice(0,6).forEach(m=>{
+    if(!m.poster_path) return;
+    suggest.innerHTML+=`
+     <div class="s-item" onclick="openMovie(${m.id})">
+      <img src="https://image.tmdb.org/t/p/w200${m.poster_path}">
+      <div>
+       <div class="s-title">${m.title}</div>
+       <div class="s-year">${m.release_date?.slice(0,4)||""}</div>
+      </div>
+     </div>`;
+   });
+  });
+ },300);
 }
 
 function openMovie(id){
@@ -62,8 +133,9 @@ function openMovie(id){
 
 loadMovies();
 
+// INFINITE SCROLL
 window.addEventListener("scroll",()=>{
- if(window.innerHeight + window.scrollY >= document.body.offsetHeight-400){
+ if(window.innerHeight + window.scrollY >= document.body.offsetHeight-500){
   loadMovies();
  }
 });
