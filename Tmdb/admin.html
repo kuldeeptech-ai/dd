@@ -45,7 +45,28 @@ a{ color:#01b4e4; text-decoration:none; }
 <button onclick="saveMovie()">Save</button>
 
 <div class="list" id="list"></div>
+  <script>
+async function saveMovie(){
+ const id = movieId.value;
+ if(!id) return alert("ID daalo");
 
+ const m = await fetch(
+  `https://api.themoviedb.org/3/movie/${id}?api_key=YOUR_TMDB_API_KEY`
+ ).then(r=>r.json());
+
+ const slug = m.title.toLowerCase().replace(/ /g,"-");
+
+ let movies = JSON.parse(localStorage.getItem("movies")) || [];
+ movies.push({id:id,slug:slug});
+ localStorage.setItem("movies",JSON.stringify(movies));
+ location.reload();
+}
+  </script>
+<script>
+if(localStorage.getItem("login")!=="yes"){
+ location.href="login.html";
+}
+</script>
 <script>
 const API_KEY = "7bffed716d50c95ed1c4790cfab4866a";
 
