@@ -2,144 +2,133 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Indian Movies</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MovieHub</title>
 
 <style>
-body{margin:0;background:#050505;color:#fff;font-family:Arial}
-.wrap{max-width:1100px;margin:auto;padding:15px}
-h2{margin-bottom:10px}
-
-/* SEARCH */
-.search-box{position:relative;margin-bottom:15px}
-.search-box input{
+body{margin:0;background:#0e0e0e;color:#fff;font-family:Arial}
+header{
+ display:flex;
+ justify-content:space-between;
+ align-items:center;
+ padding:12px;
+ background:#111;
+ position:sticky;
+ top:0;
+ z-index:10;
+}
+.logo{font-size:22px;color:#ff2f2f;font-weight:bold}
+.search{position:relative;width:60%}
+.search input{
  width:100%;
- padding:14px 18px;
+ padding:10px;
+ border-radius:6px;
  border:none;
- border-radius:30px;
- font-size:15px;
 }
 .suggest{
  position:absolute;
- top:52px;
- width:100%;
  background:#111;
- border-radius:12px;
- overflow:hidden;
- z-index:10;
+ width:100%;
+ z-index:20;
 }
-.s-item{
+.item{
  display:flex;
  gap:10px;
- padding:10px;
+ padding:8px;
  cursor:pointer;
 }
-.s-item:hover{background:#1c1c1c}
-.s-item img{
- width:45px;
- border-radius:6px;
-}
-.s-title{font-size:14px}
-.s-year{font-size:12px;color:#aaa}
+.item img{width:45px;border-radius:6px}
 
-/* GRID */
 .grid{
  display:grid;
- grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
- gap:14px;
+ grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+ gap:12px;
+ padding:15px;
 }
-.card{cursor:pointer}
-.card img{
- width:100%;
- border-radius:12px;
-}
-.name{font-size:13px;margin-top:6px}
-.year{font-size:12px;color:#aaa}
+.grid img{width:100%;border-radius:8px;cursor:pointer}
 </style>
 </head>
 
-<body>
+<body onclick="hideSuggest()">
 
-<div class="wrap">
-<h2>Indian Movies</h2>
+<header>
+ <div class="logo">🎬 MovieHub</div>
+ <div class="search" onclick="event.stopPropagation()">
+  <input placeholder="Search movies & webseries..." onkeyup="search(this.value)">
+  <div id="suggest" class="suggest"></div>
+ </div>
+</header>
 
-<div class="search-box">
-<input placeholder="Movie search karo" oninput="searchMovie(this.value)">
-<div class="suggest" id="suggest"></div>
-</div>
-
-<div class="grid" id="grid"></div>
-</div>
+<div id="grid" class="grid"></div>
 
 <script>
-const API="7bffed716d50c95ed1c4790cfab4866a";
-let page=1, loading=false;
+const API_KEY="7bffed716d50c95ed1c4790cfab4866a";
+let pageMovie=1;
+let pageTV=1;
+let loaded=new Set();
 
-// LOAD MOVIES
-function loadMovies(){
- if(loading) return;
- loading=true;
+/* LOAD INDIAN MOVIES + TV */
+async function loadContent(){
+ const movieURL=
+ `https://api.themoviedb.org/3/discover/movie?api_key=${API_KEY}&with_original_language=hi&region=IN&page=${pageMovie}`;
+ const tvURL=
+ `https://api.themoviedb.org/3/discover/tv?api_key=${API_KEY}&with_original_language=hi&region=IN&page=${pageTV}`;
 
- fetch(
- `https://api.themoviedb.org/3/discover/movie?api_key=${API}`+
- `&with_original_language=hi&region=IN&sort_by=popularity.desc&page=${page}`
- )
- .then(r=>r.json())
- .then(d=>{
-  d.results.forEach(m=>{
-   if(!m.poster_path) return;
-   grid.innerHTML+=`
-    <div class="card" onclick="openMovie(${m.id})">
-     <img loading="lazy"
-      src="https://image.tmdb.org/t/p/w300${m.poster_path}">
-     <div class="name">${m.title}</div>
-     <div class="year">${m.release_date?.slice(0,4)||""}</div>
-    </div>`;
-  });
-  page++;
-  loading=false;
+ const [mRes,tRes]=await Promise.all([fetch(movieURL),fetch(tvURL)]);
+ const mData=await mRes.json();
+ const tData=await tRes.json();
+
+ mData.results.forEach(x=>addItem(x,"movie"));
+ tData.results.forEach(x=>addItem(x,"tv"));
+
+ pageMovie++;
+ pageTV++;
+}
+
+function addItem(x,type){
+ if(!x.poster_path) return;
+ const key=type+"-"+x.id;
+ if(loaded.has(key)) return;
+ loaded.add(key);
+
+ grid.innerHTML+=`
+ <img src="https://image.tmdb.org/t/p/w342${x.poster_path}"
+ onclick="openPlayer('${type}',${x.id})">`;
+}
+
+async function search(q){
+ if(q.length<2){suggest.innerHTML="";return;}
+ const r=await fetch(
+ `https://api.themoviedb.org/3/search/multi?api_key=${API_KEY}&query=${q}`
+ );
+ const d=await r.json();
+ suggest.innerHTML="";
+ d.results.forEach(x=>{
+  if(!x.poster_path || !["movie","tv"].includes(x.media_type)) return;
+  suggest.innerHTML+=`
+  <div class="item" onclick="openPlayer('${x.media_type}',${x.id})">
+   <img src="https://image.tmdb.org/t/p/w92${x.poster_path}">
+   ${x.title||x.name}
+  </div>`;
  });
 }
 
-// SEARCH
-let timer;
-function searchMovie(q){
- clearTimeout(timer);
- if(q.length<2){suggest.innerHTML="";return;}
-
- timer=setTimeout(()=>{
-  fetch(`https://api.themoviedb.org/3/search/movie?api_key=${API}&query=${q}`)
-  .then(r=>r.json())
-  .then(d=>{
-   suggest.innerHTML="";
-   d.results.slice(0,6).forEach(m=>{
-    if(!m.poster_path) return;
-    suggest.innerHTML+=`
-     <div class="s-item" onclick="openMovie(${m.id})">
-      <img src="https://image.tmdb.org/t/p/w200${m.poster_path}">
-      <div>
-       <div class="s-title">${m.title}</div>
-       <div class="s-year">${m.release_date?.slice(0,4)||""}</div>
-      </div>
-     </div>`;
-   });
-  });
- },300);
+function openPlayer(type,id){
+ window.location.href=`player.html?type=${type}&id=${id}`;
 }
 
-function openMovie(id){
- location.href="movie.html?id="+id;
-}
+function hideSuggest(){suggest.innerHTML=""}
 
-loadMovies();
-
-// INFINITE SCROLL
+/* INFINITE SCROLL */
 window.addEventListener("scroll",()=>{
- if(window.innerHeight + window.scrollY >= document.body.offsetHeight-500){
-  loadMovies();
+ if(window.innerHeight+window.scrollY>=document.body.offsetHeight-200){
+  loadContent();
  }
 });
+
+loadContent();
 </script>
 
 </body>
 </html>
+    
