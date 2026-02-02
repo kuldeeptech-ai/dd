@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Player</title>
+
+<style>
+body{
+ margin:0;
+ background:#0b0b0b;
+ color:#fff;
+ font-family:Arial, sans-serif;
+}
+
+/* ===== BANNER ===== */
+.banner{
+ height:320px;
+ background-size:cover;
+ background-position:center;
+}
+.banner-overlay{
+ height:100%;
+ background:linear-gradient(to right,rgba(0,0,0,.9),rgba(0,0,0,.4));
+ display:flex;
+ align-items:flex-end;
+ gap:20px;
+ padding:20px;
+}
+.poster{
+ width:150px;
+ border-radius:12px;
+ box-shadow:0 15px 40px rgba(0,0,0,.8);
+}
+.banner-info h1{
+ margin:0;
+ font-size:26px;
+}
+.banner-info p{
+ margin-top:6px;
+ opacity:.85;
+}
+
+/* ===== INFO ===== */
+.info{
+ padding:20px;
+ display:grid;
+ grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+ gap:12px;
+}
+.info div{
+ background:#151515;
+ padding:12px;
+ border-radius:8px;
+ font-size:14px;
+}
+
+/* ===== CAST ===== */
+.casts{
+ padding:20px;
+}
+.cast-row{
+ display:flex;
+ gap:14px;
+ overflow-x:auto;
+}
+.cast{
+ text-align:center;
+ min-width:90px;
+}
+.cast img{
+ width:85px;
+ height:85px;
+ border-radius:50%;
+ object-fit:cover;
+}
+.cast p{
+ font-size:13px;
+ margin-top:6px;
+}
+
+/* ===== PLAYER ===== */
+.player{
+ margin:20px;
+ position:relative;
+ padding-top:56.25%; /* 16:9 */
+}
+.player iframe{
+ position:absolute;
+ inset:0;
+ width:100%;
+ height:100%;
+ border:none;
+ border-radius:14px;
+ background:#000;
+}
+
+/* ===== TRAILER ===== */
+.trailer-btn{
+ background:#ff2f2f;
+ margin:0 20px 20px;
+ padding:12px;
+ text-align:center;
+ border-radius:8px;
+ cursor:pointer;
+ font-weight:bold;
+}
+.modal{
+ display:none;
+ position:fixed;
+ inset:0;
+ background:rgba(0,0,0,.9);
+ z-index:999;
+}
+.modal iframe{
+ width:90%;
+ height:50%;
+ margin:10% auto;
+ display:block;
+ border-radius:12px;
+}
+
+/* ===== MOBILE ===== */
+@media(max-width:768px){
+ .banner{height:260px}
+ .poster{width:120px}
+ .banner-info h1{font-size:20px}
+}
+</style>
+</head>
+
+<body>
+
+<!-- ===== BANNER ===== -->
+<div id="banner" class="banner">
+ <div class="banner-overlay">
+  <img id="poster" class="poster">
+  <div class="banner-info">
+   <h1 id="title"></h1>
+   <p id="tagline"></p>
+  </div>
+ </div>
+</div>
+
+<!-- ===== INFO ===== -->
+<div id="info" class="info"></div>
+
+<!-- ===== TRAILER ===== -->
+<div class="trailer-btn" onclick="openTrailer()">▶ Watch Trailer</div>
+
+<!-- ===== CAST ===== -->
+<div class="casts">
+ <h3>Casts</h3>
+ <div id="casts" class="cast-row"></div>
+</div>
+
+<!-- ===== PLAYER ===== -->
+<div class="player">
+ <iframe id="mainPlayer" allowfullscreen></iframe>
+</div>
+
+<!-- ===== TRAILER MODAL ===== -->
+<div id="modal" class="modal" onclick="closeTrailer()">
+ <iframe id="trailerFrame" allowfullscreen></iframe>
+</div>
+
+<script>
+const API_KEY = "7bffed716d50c95ed1c4790cfab4866a";
+const params = new URLSearchParams(location.search);
+const id = params.get("id");
+const type = params.get("type"); // movie | tv
+
+if(!id || !type){
+ alert("Invalid URL");
+}
+
+/* ===== LOAD DATA ===== */
+async function load(){
+ const api = type==="tv"
+ ? `https://api.themoviedb.org/3/tv/${id}?api_key=${API_KEY}&append_to_response=videos,credits`
+ : `https://api.themoviedb.org/3/movie/${id}?api_key=${API_KEY}&append_to_response=videos,credits`;
+
+ const res = await fetch(api);
+ const d = await res.json();
+
+ /* Banner */
+ banner.style.backgroundImage =
+ `url(https://image.tmdb.org/t/p/original${d.backdrop_path})`;
+ poster.src =
+ `https://image.tmdb.org/t/p/w342${d.poster_path}`;
+
+ title.innerText = d.name || d.title;
+ tagline.innerText = d.tagline || "Now Streaming";
+
+ /* Info */
+ info.innerHTML = `
+  <div><b>Release</b><br>${d.first_air_date || d.release_date || "-"}</div>
+  <div><b>Language</b><br>${d.original_language.toUpperCase()}</div>
+  <div><b>Rating</b><br>⭐ ${d.vote_average}</div>
+  <div><b>Genres</b><br>${d.genres.map(g=>g.name).join(", ")}</div>
+ `;
+
+ /* Cast */
+ casts.innerHTML="";
+ d.credits.cast.slice(0,10).forEach(c=>{
+  if(!c.profile_path) return;
+  casts.innerHTML+=`
+   <div class="cast">
+    <img src="https://image.tmdb.org/t/p/w185${c.profile_path}">
+    <p>${c.name}</p>
+   </div>`;
+ });
+
+ /* Player (AutoEmbed) */
+ mainPlayer.src = type==="tv"
+ ? `https://player.autoembed.cc/embed/tv/${id}/1/1`
+ : `https://player.autoembed.cc/embed/movie/${id}`;
+
+ /* Hindi Trailer */
+ const hindi = d.videos.results.find(v =>
+  v.type==="Trailer" &&
+  (v.iso_639_1==="hi" || v.name.toLowerCase().includes("hindi"))
+ );
+ const trailer = hindi || d.videos.results.find(v=>v.type==="Trailer");
+ if(trailer){
+  trailerFrame.src =
+  `https://www.youtube.com/embed/${trailer.key}?autoplay=1`;
+ }
+}
+
+function openTrailer(){modal.style.display="block"}
+function closeTrailer(){
+ modal.style.display="none";
+ trailerFrame.src = trailerFrame.src;
+}
+
+load();
+</script>
+
+</body>
+</html>
