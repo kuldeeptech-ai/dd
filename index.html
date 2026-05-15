@@ -1,55 +1,253 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kuldeep Rai</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: Arial, sans-serif;
-        }
-        .header {
-            background-color: #333;
-            color: white;
-            text-align: center;
-            padding: 15px 0;
-            font-size: 24px;
-            font-weight: bold;
-        }
-        .container {
-            position: relative;
-            width: 100%;
-            padding-top: 56.25%; /* 16:9 Aspect Ratio */
-            margin: 0 auto;
-            max-width: 1200px;
-        }
-        .iframe-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            right: 0;
-        }
-        iframe {
-            width: 100%;
-            height: 100%;
-            border-radius: 15px 15px 0 0;
-            border: none;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Movie Search Player</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial,sans-serif;
+}
+
+html,body{
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:#000;
+}
+
+/* Fullscreen Player */
+#player{
+    position:fixed;
+    inset:0;
+    width:100%;
+    height:100%;
+    border:none;
+    background:#000;
+}
+
+/* Popup */
+.popup{
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.92);
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    z-index:9999;
+    padding:20px;
+}
+
+.popup-box{
+    width:100%;
+    max-width:700px;
+    background:#111827;
+    border-radius:20px;
+    padding:20px;
+}
+
+.popup-box h2{
+    color:#fff;
+    margin-bottom:18px;
+    text-align:center;
+}
+
+.search{
+    display:flex;
+    gap:10px;
+    margin-bottom:20px;
+}
+
+.search input{
+    flex:1;
+    height:52px;
+    border:none;
+    border-radius:12px;
+    padding:0 15px;
+    font-size:16px;
+}
+
+.search button{
+    width:120px;
+    border:none;
+    border-radius:12px;
+    background:#2563eb;
+    color:#fff;
+    font-size:16px;
+    cursor:pointer;
+}
+
+.movies{
+    max-height:400px;
+    overflow:auto;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+}
+
+.movie{
+    background:#1f2937;
+    padding:15px;
+    border-radius:14px;
+    cursor:pointer;
+    transition:.3s;
+}
+
+.movie:hover{
+    background:#374151;
+}
+
+.movie h3{
+    color:#fff;
+    font-size:18px;
+    margin-bottom:5px;
+}
+
+.movie p{
+    color:#9ca3af;
+}
+
+@media(max-width:768px){
+
+.search{
+    flex-direction:column;
+}
+
+.search button{
+    width:100%;
+    height:50px;
+}
+
+.popup-box{
+    padding:15px;
+}
+
+}
+</style>
 </head>
 <body>
-    <div class="header">Kuldeep Rai</div>
-    <div class="container">
-        <div class="iframe-container">
-           <div style="background: rgb(0, 0, 0); border-radius: 15px 15px 0px 0px; box-shadow: rgba(0, 0, 0, 0.2) 0px 4px 12px; height: 0px; max-width: 100%; overflow: hidden; padding-bottom: 56.25%; position: relative;">
 
-  <iframe allow="autoplay; fullscreen; accelerometer; gyroscope; picture-in-picture" allowfullscreen="" frameborder="0" sandbox="allow-scripts allow-same-origin allow-popups-to-escape-sandbox allow-orientation-lock" src="https://ipladjustble.pages.dev/" style="border-radius: 15px 15px 0 0; border: none; height: 100%; left: 0; position: absolute; top: 0; width: 100%;"></iframe>
+<!-- Fullscreen Player -->
+<div id="player"></div>
+
+<!-- Popup -->
+<div class="popup" id="popup">
+
+    <div class="popup-box">
+
+        <h2>Search Indian Movie</h2>
+
+        <div class="search">
+            <input type="text" id="searchInput" placeholder="Enter movie name...">
+            <button onclick="searchMovie()">Search</button>
+        </div>
+
+        <div class="movies" id="movies"></div>
+
+    </div>
 
 </div>
-        </div>
-    </div>
+
+<script>
+const API_KEY = "684fefc5";
+
+async function searchMovie(){
+
+    const query = document.getElementById("searchInput").value;
+
+    if(!query) return;
+
+    const moviesBox = document.getElementById("movies");
+
+    moviesBox.innerHTML =
+    "<div class='movie'><h3>Loading...</h3></div>";
+
+    try{
+
+        const res = await fetch(
+        `https://www.omdbapi.com/?apikey=${API_KEY}&s=${query}&type=movie`
+        );
+
+        const data = await res.json();
+
+        moviesBox.innerHTML = "";
+
+        if(data.Search){
+
+            for(const movie of data.Search){
+
+                const detailRes = await fetch(
+                `https://www.omdbapi.com/?apikey=${API_KEY}&i=${movie.imdbID}`
+                );
+
+                const detail = await detailRes.json();
+
+                // Only Indian movies
+                if((detail.Country || "")
+                .toLowerCase()
+                .includes("india")){
+
+                    const div = document.createElement("div");
+
+                    div.className = "movie";
+
+                    div.innerHTML = `
+                        <h3>${movie.Title}</h3>
+                        <p>${movie.Year}</p>
+                    `;
+
+                    div.onclick = () => {
+
+                        // Popup hide
+                        document.getElementById("popup")
+                        .style.display = "none";
+
+                        // Fullscreen player iframe
+                        document.getElementById("player")
+                        .innerHTML = `
+                            <iframe
+                            src="https://streamimdb.me/embed/movie/${movie.imdbID}"
+                            allowfullscreen
+                            style="
+                                position:fixed;
+                                inset:0;
+                                width:100%;
+                                height:100%;
+                                border:none;
+                                background:#000;
+                            ">
+                            </iframe>
+                        `;
+                    };
+
+                    moviesBox.appendChild(div);
+                }
+            }
+
+            if(moviesBox.innerHTML.trim() === ""){
+                moviesBox.innerHTML =
+                "<div class='movie'><h3>No Indian Movies Found</h3></div>";
+            }
+
+        }else{
+
+            moviesBox.innerHTML =
+            "<div class='movie'><h3>No Results Found</h3></div>";
+
+        }
+
+    }catch(e){
+
+        moviesBox.innerHTML =
+        "<div class='movie'><h3>Error Loading Movies</h3></div>";
+
+    }
+}
+</script>
+
 </body>
-</html>
+    </html>
