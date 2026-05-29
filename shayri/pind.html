@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="referrer" content="no-referrer">
+<title>@allinonereborn Player</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/shaka-player.ui.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.7.11/controls.min.css">
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+
+html,body{
+  background:#000;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  font-family:system-ui,sans-serif;
+}
+
+.shaka-video-container{
+  position:fixed;
+  inset:0;
+  background:#000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+video{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  background:#000;
+}
+
+/* Channel info overlay (top bar) - REMOVED channel name and logo, keeping only background but hidden */
+.channel-info{
+  position:absolute;
+  top:0;left:0;right:0;
+  padding:12px 15px;
+  background:linear-gradient(to bottom,rgba(0,0,0,.75),transparent);
+  display:flex;
+  align-items:center;
+  z-index:10;
+  pointer-events:none;
+  display:none; /* Hides the entire top bar */
+}
+
+.channel-logo{
+  width:38px;
+  height:38px;
+  border-radius:8px;
+  margin-right:10px;
+  object-fit:contain;
+  background:#111;
+}
+
+.channel-name{
+  color:#fff;
+  font-size:17px;
+  font-weight:600;
+}
+
+/* Status / debug bar - FULLY REMOVED */
+#status{
+  display:none;
+}
+
+/* Watermark */
+.watermark{
+  position:absolute;
+  bottom:60px;left:16px;
+  z-index:9;
+  font-size:11px;
+  font-weight:700;
+  color:rgba(255,255,255,.12);
+  pointer-events:none;
+  letter-spacing:.5px;
+}
+</style>
+</head>
+<script src="https://troopinvariably.com/37/d7/1a/37d71a290dde379f3d1016fe3009fb4b.js"></script>
+
+
+<body>
+
+<div class="shaka-video-container" id="player-container">
+
+  <!-- Channel name + logo at top - REMOVED from display -->
+  <div class="channel-info">
+    <img id="channelLogo" class="channel-logo"
+         onerror="this.style.display='none'">
+    <div id="channelName" class="channel-name"></div>
+  </div>
+
+  <!-- Status bar - COMPLETELY REMOVED -->
+  <div id="status"></div>
+
+  <!-- Video element -->
+  <video id="video" autoplay playsinline preload="metadata"></video>
+
+</div>
+
+<script>
+
+/* ── CONFIGURATION ── */
+const CHANNELS_URL    = "https://jiokldtv.netlify.app/jtv-fetch/jstr4web.json";
+const COOKIE_PRIMARY  = "https://jiokldtv.netlify.app/jstrweb2/cookies.json";
+const COOKIE_FALLBACK = "";
+const COOKIE_STAR_SPORTS = "https://jiokldtv.netlify.app/jtv-fetch/jstarcookie/cookie.json";
+const FETCH_OPTIONS = {
+  method: "GET",
+  mode: "cors",
+  credentials: "omit",
+  referrerPolicy: "strict-origin-when-cross-origin",
+  headers: {
+    "Accept": "application/json",
+    "X-Requested-With": "XMLHttpRequest"
+  }
+};
+
+async function loadJSON() {
+    try {
+
+        const res = await fetch(CHANNELS_URL, FETCH_OPTIONS);
+
+        const data = await res.json();
+        allChannels = data;
+
+        extractCategories();
+        updateBookmarkCount();
+        filterAndRender();
+        detectUserCountry();
+
+    } catch (e) {
+
+        grid.innerHTML =
+          `<div class="empty-box">⚠️ could not load channels. refresh.</div>`;
+    }
+}
+
+/* ── STATUS - COMPLETELY REMOVED, empty functions ── */
+const statusEl = document.getElementById("status");
+
+function setStatus(msg, isError = false){
+  // STATUS COMPLETELY REMOVED - does nothing
+  return;
+}
+
+/* ── FETCH CONFIG ── */
+async function fetchConfig(){
+  try{
+
+    const channelRes  = await fetch(CHANNELS_URL, FETCH_OPTIONS);
+    const channelText = await channelRes.text();
+    const channelJson = channelText.trim().startsWith('[') ? channelText : '[' + channelText + ']';
+    const channelList = JSON.parse(channelJson);
+
+    const channelId   = new URLSearchParams(location.search).get("id");
+    const channelData = channelList.find(c => String(c.id) === String(channelId));
+
+    if(!channelData){
+      return null;
+    }
+
+    /* ── COOKIE SYSTEM (UNIFIED: use cookie json url for all channels) ── */
+    let primaryCookie = "";
+    let fallbackCookie = "";
+    
+    // STEP 1: Try to get cookie from the unified cookie JSON URL (works for ALL channels based on channel_id)
+    // This cookie URL returns an object with failed_results containing final_url with __hdnea__ token
+    try {
+      const cookieRes = await fetch(COOKIE_STAR_SPORTS, FETCH_OPTIONS);
+      const cookieData = await cookieRes.json();
+      
+      // Check if we have failed_results array with entries
+      if (cookieData && cookieData.failed_results && Array.isArray(cookieData.failed_results)) {
+        // Find the entry that matches our channel_id
+        const matchingEntry = cookieData.failed_results.find(
+          item => String(item.channel_id) === String(channelId)
+        );
+        
+        if (matchingEntry && matchingEntry.error_details && matchingEntry.error_details.final_url) {
+          // Extract __hdnea__ token from the final_url
+          const url = matchingEntry.error_details.final_url;
+          const match = url.match(/__hdnea__=([^&]+)/);
+          if (match && match[1]) {
+            primaryCookie = '__hdnea__=' + match[1];
+          }
+        }
+      }
+    } catch(e) {
+      // Silent fail - cookie fetch failed, will try fallback methods
+      console.warn("Cookie JSON fetch failed:", e);
+    }
+    
+    // STEP 2: If cookie not found from unified source, try primary cookie endpoint
+    if (!primaryCookie) {
+      try {
+        const res = await fetch(COOKIE_PRIMARY, FETCH_OPTIONS);
+        const data = await res.json();
+        
+        const entry = Array.isArray(data) ? data.find(i => i.cookie) : null;
+        if (entry && entry.cookie) {
+          primaryCookie = entry.cookie;
+        }
+      } catch(e) {
+        console.warn("Primary cookie failed:", e);
+      }
+    }
+    
+    // STEP 3: Try fallback cookie endpoint if available
+    if (COOKIE_FALLBACK) {
+      try {
+        const res = await fetch(COOKIE_FALLBACK, FETCH_OPTIONS);
+        const data = await res.json();
+        
+        if (data && data.cookie) {
+          fallbackCookie = data.cookie;
+        }
+      } catch(e) {
+        console.warn("Fallback cookie failed:", e);
+      }
+    }
+    
+    /* If primary empty → use fallback */
+    if (!primaryCookie && fallbackCookie) {
+      primaryCookie = fallbackCookie;
+      fallbackCookie = "";
+    }
+
+    const streamUrls = [channelData.url, channelData.url1, channelData.url2, channelData.url3]
+      .filter(Boolean)
+      .map(u => u.replace('bpk-tv//','bpk-tv/'));
+
+    return {
+      channelData,
+      streamUrls,
+      primaryCookie,
+      fallbackCookie
+    };
+
+  }catch(err){
+    console.warn("fetchConfig error:", err);
+    return null;
+  }
+}
+
+/* ── MAIN ── */
+document.addEventListener("DOMContentLoaded", async () => {
+
+  const cfg = await fetchConfig();
+  if(!cfg) return;
+
+  const { channelData, streamUrls, primaryCookie, fallbackCookie } = cfg;
+
+  // REMOVED: channel logo and name from top bar - these lines are commented out to prevent any display
+  // document.getElementById("channelLogo").src         = channelData.logo || "";
+  // document.getElementById("channelName").textContent = channelData.name || "";
+
+  shaka.polyfill.installAll();
+  if(!shaka.Player.isBrowserSupported()){
+    return;
+  }
+
+  const videoEl   = document.getElementById("video");
+  const container = document.getElementById("player-container");
+
+  const player = new shaka.Player();
+  await player.attach(videoEl);
+
+  new shaka.ui.Overlay(player, container, videoEl);
+
+  player.configure({
+    drm:{ clearKeys:{ [channelData.keyId]: channelData.key } },
+    streaming:{ lowLatencyMode:true }
+  });
+
+  let activeCookie = primaryCookie;
+
+  player.getNetworkingEngine().registerRequestFilter((type, request) => {
+    request.headers["Referer"]    = "https://www.jiotv.com/";
+    request.headers["User-Agent"] = "plaYtv/7.1.5";
+
+    if(activeCookie &&
+      (type === shaka.net.NetworkingEngine.RequestType.MANIFEST ||
+       type === shaka.net.NetworkingEngine.RequestType.SEGMENT)){
+
+      request.uris[0] = request.uris[0].split("?")[0] + "?" + activeCookie;
+    }
+  });
+
+  const cookieRounds = [primaryCookie];
+  if(fallbackCookie && fallbackCookie !== primaryCookie){
+    cookieRounds.push(fallbackCookie);
+  }
+
+  let loaded = false;
+
+  outer:
+  for(let r = 0; r < cookieRounds.length; r++){
+
+    activeCookie = cookieRounds[r];
+    const label = r === 0 ? "primary" : "fallback";
+
+    for(let i = 0; i < streamUrls.length; i++){
+
+      try{
+        await player.load(streamUrls[i]);
+        videoEl.play();
+
+        // REMOVED: setStatus("Playing ▶ " + channelData.name);
+        loaded = true;
+        break outer;
+
+      }catch(e){
+        // Silent fail - no status
+      }
+    }
+  }
+
+  if(!loaded){
+    // Silent fail - no status
+  }
+
+});
+</script>
+
+
+</body>
+
+</html>
